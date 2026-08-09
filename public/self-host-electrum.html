@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Run your own Electrum server — Cykuza</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --fg: #1a1a1a;
+        --muted: #555;
+        --border: #ccc;
+        --bg: #fafafa;
+        --card: #fff;
+        --accent: #0b5fff;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --fg: #f2f2f2;
+          --muted: #a8a8a8;
+          --border: #333;
+          --bg: #111;
+          --card: #1a1a1a;
+          --accent: #6ea8ff;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+        line-height: 1.55;
+        color: var(--fg);
+        background: var(--bg);
+      }
+      main {
+        max-width: 42rem;
+        margin: 0 auto;
+        padding: 2.5rem 1.25rem 4rem;
+      }
+      h1 {
+        font-size: 1.6rem;
+        font-weight: 650;
+        letter-spacing: -0.02em;
+        margin: 0 0 0.5rem;
+      }
+      h2 {
+        font-size: 1.1rem;
+        margin: 2rem 0 0.6rem;
+      }
+      p,
+      li {
+        color: var(--fg);
+      }
+      .lead,
+      .muted {
+        color: var(--muted);
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 1rem 1.1rem;
+        margin: 1.25rem 0;
+      }
+      ol,
+      ul {
+        padding-left: 1.25rem;
+      }
+      li + li {
+        margin-top: 0.4rem;
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.92em;
+      }
+      a {
+        color: var(--accent);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Run your own Electrum server</h1>
+      <p class="lead">
+        Cykuza can ship shared Electrum defaults for convenience. Those hosts
+        see addresses you query and can lie about balances, history, fees, or
+        broadcast. A personal server you control is the stronger trust model.
+      </p>
+
+      <div class="card">
+        <strong>What you get</strong>
+        <p class="muted" style="margin: 0.4rem 0 0">
+          Your wallet talks to Electrum over <code>wss://</code> (TLS). Dual-server
+          verify (when two endpoints are configured) cross-checks balance/UTXO
+          fingerprints and broadcast txids — it does not replace trusting who
+          runs the servers.
+        </p>
+      </div>
+
+      <h2>1. Run ElectrumX for Cyberyen</h2>
+      <ol>
+        <li>
+          Run a Cyberyen full node and an
+          <a
+            href="https://electrumx.readthedocs.io/"
+            rel="noreferrer noopener"
+            target="_blank"
+            >ElectrumX</a
+          >
+          (or compatible) server pointed at that node.
+        </li>
+        <li>
+          Expose Electrum over TLS as <code>wss://your-host:port</code>. Plain
+          <code>ws://</code> is rejected by the wallet.
+        </li>
+        <li>
+          Prefer two independent hosts if you want dual-server verify to mean
+          something beyond a single operator.
+        </li>
+      </ol>
+
+      <h2>2. Add it in Cykuza</h2>
+      <ol>
+        <li>Open the extension → <strong>Settings → Network</strong>.</li>
+        <li>
+          Add your <code>wss://</code> URL. Chrome will ask for host permission —
+          grant only hosts you intend to use.
+        </li>
+        <li>
+          Optionally remove built-in servers so traffic no longer hits shared
+          defaults.
+        </li>
+        <li>
+          Keep <strong>Verify with second server</strong> on when two or more
+          endpoints are configured.
+        </li>
+      </ol>
+
+      <h2>3. Source / contributor builds</h2>
+      <p>
+        Builds without injected defaults have an empty mainnet list — you must
+        add a custom <code>wss://</code> before Refresh or Send. Release builds
+        may include shared defaults via
+        <code>CYKUZA_ELECTRUM_MAINNET_URLS</code>; treat them as optional
+        convenience, not a privacy guarantee.
+      </p>
+
+      <p class="muted">
+        Keys never leave your device. Electrum only learns what you query on-chain.
+      </p>
+    </main>
+  </body>
+</html>

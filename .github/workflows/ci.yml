@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      # Dual audit: shipped/runtime deps must be clean; full tree allows only the
+      # documented image-size DoS residual in web-ext/addons-linter (see SECURITY.md).
+      - run: npm run audit:prod
+      - run: npm run audit:toolchain
+      - run: npm run lint
+      - run: npm run check:leaks
+      - run: npm test
+      - run: npm run compile
+      # Source / contributor build — no CYKUZA_ELECTRUM_MAINNET_URLS secret.
+      # Release injects hosts into the bundle by design; this job gates git source
+      # and secret-free .output artifacts (chrome + firefox MV3).
+      - run: npm run build
+      - run: npm run build:firefox
+      - run: npm run check:no-secrets

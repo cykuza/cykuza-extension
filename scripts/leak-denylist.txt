@@ -1,0 +1,10 @@
+# Leak denylist — hostnames / substrings that must not reappear in git.
+#
+# WARNING: putting a real production Electrum hostname here publishes it
+# in the public repository. Prefer CI secret LEAK_DENYLIST for maintainer
+# regression lists that must stay private.
+#
+# Use this file only for hosts that already leaked publicly, or for
+# well-known mock bans.
+#
+# One entry per line. Lines starting with # are ignored.

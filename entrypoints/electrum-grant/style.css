@@ -1,0 +1,198 @@
+/* Electrum grant tab — same palette as popup, full-viewport composition. */
+
+@font-face {
+  font-family: 'Hack';
+  src: url('/fonts/hack-regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Hack';
+  src: url('/fonts/hack-bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: dark;
+  --bg: #000000;
+  --surface: #141414;
+  --border: rgba(255, 255, 255, 0.14);
+  --border-strong: rgba(255, 255, 255, 0.28);
+  --text: #ffffff;
+  --text-muted: #67686b;
+  --text-label: #a1a1a1;
+  --text-soft: #c8c8c8;
+  --primary: #ffffff;
+  --primary-fg: #000000;
+  --primary-hover: #d2d2d2;
+  --focus-ring: rgba(255, 255, 255, 0.45);
+  --radius: 12px;
+  --control-h: 48px;
+  --font: 'Hack', ui-monospace, monospace;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+/* Visual focus indicators are :focus-visible only (controls define their own). */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.grant {
+  max-width: 28rem;
+  margin: 0 auto;
+  padding: 3rem 1.25rem 4rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.grant-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.grant-mark {
+  display: block;
+  border-radius: 8px;
+}
+
+.grant-kicker {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.grant-title {
+  margin: 0;
+  font-size: 1.55rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.grant-host {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-soft);
+  word-break: break-all;
+}
+
+.grant-lead {
+  margin: 0;
+  color: var(--text-label);
+}
+
+.grant-points {
+  margin: 0;
+  padding-left: 1.2em;
+  color: var(--text-soft);
+}
+
+.grant-points li + li {
+  margin-top: var(--space-2);
+}
+
+.grant-points code {
+  font-family: inherit;
+  font-size: 0.92em;
+}
+
+.grant-success {
+  margin: 0;
+  color: var(--text-soft);
+}
+
+.grant-foot {
+  margin: var(--space-2) 0 0;
+  font-size: 12px;
+}
+
+.muted {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.error {
+  margin: 0;
+  color: var(--text-soft);
+}
+
+.mono {
+  font-variant-ligatures: none;
+}
+
+button.primary,
+button.secondary,
+button.danger,
+button.ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--control-h);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+button.primary {
+  background: var(--primary);
+  color: var(--primary-fg);
+  border-color: var(--primary);
+}
+
+button.primary:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+
+button.block {
+  width: 100%;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
