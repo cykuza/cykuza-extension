@@ -9,7 +9,11 @@ import {
   shouldNotifyPopupHidden,
   type PopupHidePolicy,
 } from './popupHideSession';
-import { isSeedBackupPending } from './lib/seedBackup';
+import {
+  canResumePopup,
+  isSeedBackupPending,
+  stageFromStatus,
+} from './lib/seedBackup';
 import {
   clearPopupResume,
   isResumableStage,
@@ -60,11 +64,6 @@ const SETTINGS_TITLES: Record<SettingsSection, string> = {
   destroy: 'End session',
 };
 
-function stageFromStatus(status: WalletStatus): WalletStage {
-  if (!status.hasVault) return 'idle';
-  return 'ready';
-}
-
 /**
  * Popup stage machine aligned with cykuza-web wallet stages.
  * Secrets stay ephemeral; vault ops go through walletRpc only.
@@ -99,10 +98,16 @@ export default function App() {
     }
   }, []);
 
+  const pendingMnemonicRef = useRef<string | null>(null);
+
   const enterBackupFlow = useCallback(
     async (next: WalletStatus) => {
       rememberStatus(next);
       void clearPopupResume();
+      if (pendingMnemonicRef.current) {
+        setStage('mnemonic-display');
+        return;
+      }
       const peek = await walletRpc({ type: 'pendingBackupMnemonic' });
       if (!peek.ok || !peek.mnemonic) {
         setErrorMessage(
@@ -113,9 +118,9 @@ export default function App() {
         setStage('error');
         return;
       }
+      pendingMnemonicRef.current = peek.mnemonic;
       setPendingMnemonic(peek.mnemonic);
       setPendingCreateAddress(peek.status.address ?? next.address);
-      setFlow({ kind: 'create' });
       setStage('mnemonic-display');
     },
     [rememberStatus]
@@ -124,7 +129,7 @@ export default function App() {
   const applyStatus = useCallback(
     (next: WalletStatus, nextStage?: WalletStage) => {
       rememberStatus(next);
-      if (isSeedBackupPending(next) && !next.locked) {
+      if (stageFromStatus(next) === 'mnemonic-display') {
         void enterBackupFlow(next);
         return;
       }
@@ -140,6 +145,7 @@ export default function App() {
   const clearPending = useCallback(() => {
     setPendingPassword(null);
     setPendingPassphrase(undefined);
+    pendingMnemonicRef.current = null;
     setPendingMnemonic(null);
     setPendingCreateAddress(undefined);
     setFlow({ kind: 'none' });
@@ -166,15 +172,11 @@ export default function App() {
         return;
       }
       rememberStatus(res.status);
-      if (isSeedBackupPending(res.status)) {
-        if (res.status.locked) {
-          setStage('ready');
-          return;
-        }
+      if (stageFromStatus(res.status) === 'mnemonic-display') {
         await enterBackupFlow(res.status);
         return;
       }
-      if (!res.status.locked && res.status.hasVault) {
+      if (canResumePopup(res.status)) {
         const resume = await readPopupResume();
         if (cancelled) return;
         if (resume && isResumableStage(resume.stage)) {
@@ -197,13 +199,10 @@ export default function App() {
   }, [rememberStatus, enterBackupFlow]);
 
   useEffect(() => {
-    if (!status || status.locked || isSeedBackupPending(status)) {
+    if (!status || !canResumePopup(status) || !isResumableStage(stage)) {
       if (status && isSeedBackupPending(status)) {
         void clearPopupResume();
       }
-      return;
-    }
-    if (!isResumableStage(stage)) {
       return;
     }
     void writePopupResume(stage);
@@ -226,10 +225,7 @@ export default function App() {
    */
   const shouldWatch =
     !!status &&
-    !status.locked &&
-    status.hasVault &&
-    status.seedBackupConfirmed &&
-    !status.vaultCorrupt &&
+    canResumePopup(status) &&
     status.serverStatus !== 'unconfigured' &&
     status.electrumTrust !== 'degraded' &&
     status.electrumTrust !== 'verify_off';
@@ -306,8 +302,7 @@ export default function App() {
   }, [stage, flow, clearPending]);
 
   const chrome: ChromeProps = useMemo(() => {
-    const unlockedReady =
-      stage === 'ready' && status && !status.locked && !status.vaultCorrupt;
+    const unlockedReady = stage === 'ready' && status && canResumePopup(status);
 
     if (stage === 'loading' || stage === 'idle') {
       return { showBrand: true };
@@ -394,6 +389,7 @@ export default function App() {
         throw new Error('Create succeeded but address missing');
       }
       rememberStatus(res.status);
+      pendingMnemonicRef.current = res.mnemonic;
       setPendingMnemonic(res.mnemonic);
       setPendingCreateAddress(res.status.address);
       setPendingPassword(null);
@@ -457,11 +453,7 @@ export default function App() {
       if (res.status) rememberStatus(res.status);
       throw err;
     }
-    if (isSeedBackupPending(res.status) && !res.status.locked) {
-      await enterBackupFlow(res.status);
-      return;
-    }
-    applyStatus(res.status, 'ready');
+    applyStatus(res.status);
   };
 
   const focusKey = stage;
@@ -535,6 +527,7 @@ export default function App() {
           onConfirm={async () => {
             const res = await walletRpc({ type: 'confirmSeedBackup' });
             if (!res.ok) throw new Error(res.error);
+            pendingMnemonicRef.current = null;
             setPendingMnemonic(null);
             setPendingCreateAddress(undefined);
             setFlow({ kind: 'none' });
@@ -578,18 +571,14 @@ export default function App() {
         <PasswordLockView status={status} onUnlock={onUnlock} />
       )}
 
-      {stage === 'ready' &&
-        status &&
-        !status.vaultCorrupt &&
-        !status.locked &&
-        status.seedBackupConfirmed && (
-          <ReadyView
-            status={status}
-            onStatus={(next) => applyStatus(next, 'ready')}
-            onReceive={() => setStage('receive')}
-            onSend={() => setStage('send')}
-          />
-        )}
+      {stage === 'ready' && status && canResumePopup(status) && (
+        <ReadyView
+          status={status}
+          onStatus={(next) => applyStatus(next, 'ready')}
+          onReceive={() => setStage('receive')}
+          onSend={() => setStage('send')}
+        />
+      )}
 
       {stage === 'receive' && status && <ReceiveView status={status} />}
 

@@ -124,7 +124,7 @@ Pipeline:
 2. Release job: export the secret into the build environment → `npm run zip` and `npm run zip:firefox` (WXT reads env in `wxt.config.ts` for runtime defaults + install-time `host_permissions`).
 3. Record SHA-256 digests of the browser zips (`shasum -a 256 .output/*.zip` or `npm run hash:artifacts`) in the release notes / checklist before upload.
 4. Upload the browser zips to CWS / AMO. Official hosts in the **release** artifact are expected.
-5. **Source tarball** for reviewers (`git archive`, GitHub source zip, or WXT `*-sources.zip`): must not include `.env` or real hostnames. Contributor/CI builds leave `CYKUZA_ELECTRUM_MAINNET_URLS` unset so `.output` stays secret-free (`check:no-secrets` must pass).
+5. **AMO source upload:** attach WXT `*-sources.zip` (or this tree) on the version page. Build steps: [AMO_REVIEW.md](AMO_REVIEW.md). The archive must not include `.env` or real hostnames; put the exact `CYKUZA_ELECTRUM_MAINNET_URLS` string only in AMO *Notes to Reviewers*. Contributor/CI builds leave the env unset so `.output` stays secret-free (`check:no-secrets` must pass).
 
 Optional private regression denylist: CI env `LEAK_DENYLIST` (do not put live hosts in `scripts/leak-denylist.txt` unless they already leaked publicly).
 

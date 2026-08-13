@@ -65,5 +65,6 @@ Also:
 2. Release build: inject the secret into the environment → `npm run zip` / `npm run zip:firefox` → upload store artifacts. Official hosts in those zips are expected.
 3. Record SHA-256 digests of the browser zips (`shasum -a 256 .output/*.zip` or `npm run hash:artifacts`) in the release checklist / notes.
 4. Public source (`git archive`, GitHub source zip, WXT `*-sources.zip`) must omit `.env` and real hosts. Contributor/CI builds leave the env unset; `check:no-secrets` must pass on `.output`.
+5. Firefox AMO: upload `*-sources.zip` on the version page and follow [AMO_REVIEW.md](AMO_REVIEW.md). Put official Electrum URLs only in AMO *Notes to Reviewers* (not in git).
 
 See README → Release maintainers. Optional private regression denylist: CI env `LEAK_DENYLIST` (do not put live hosts in `scripts/leak-denylist.txt` unless they already leaked publicly).
