@@ -70,53 +70,55 @@ export default function PasswordLockView({ status, onUnlock }: Props) {
   return (
     <div className="panel">
       <div className="card">
-        <p className="muted">
-          Vault present · {networkLabel(status.network)}
-          {needsPassphrase ? ' · Passphrase wallet' : ''}
-          {remaining !== undefined && !lockedOut
-            ? ` · ${remaining} attempt${remaining === 1 ? '' : 's'} left`
-            : ''}
-        </p>
-        {lockedOut && (
-          <p className="error" role="alert">
-            Locked out until {new Date(lockoutUntil!).toLocaleTimeString()}.
+        <div className="stack">
+          <p className="muted">
+            Vault present · {networkLabel(status.network)}
+            {needsPassphrase ? ' · Passphrase wallet' : ''}
+            {remaining !== undefined && !lockedOut
+              ? ` · ${remaining} attempt${remaining === 1 ? '' : 's'} left`
+              : ''}
           </p>
-        )}
-        <PasswordField
-          value={password}
-          onChange={setPassword}
-          disabled={lockedOut || busy}
-          onEnter={() => void submit()}
-        />
-        {needsPassphrase && (
-          <>
-            <p className="muted">BIP39 passphrase (not your vault password).</p>
-            <PasswordField
-              label="BIP39 passphrase"
-              value={passphrase}
-              onChange={setPassphrase}
-              autoComplete="off"
-              disabled={lockedOut || busy}
-              onEnter={() => void submit()}
-            />
-          </>
-        )}
-        {error && <p className="error" role="alert">{error}</p>}
-        <Button
-          block
-          disabled={lockedOut}
-          busy={busy}
-          onClick={() => void submit()}
-        >
-          {busy ? 'Unlocking…' : 'Unlock'}
-        </Button>
-        <p className="muted">
-          Locks after {status.autoLockMinutes} min idle
-          {status.lockWhenPopupCloses
-            ? ' · closing the popup resets that countdown'
-            : ''}
-          .
-        </p>
+          {lockedOut && (
+            <p className="error" role="alert">
+              Locked out until {new Date(lockoutUntil!).toLocaleTimeString()}.
+            </p>
+          )}
+          <PasswordField
+            value={password}
+            onChange={setPassword}
+            disabled={lockedOut || busy}
+            onEnter={() => void submit()}
+          />
+          {needsPassphrase && (
+            <>
+              <p className="muted">BIP39 passphrase (not your vault password).</p>
+              <PasswordField
+                label="BIP39 passphrase"
+                value={passphrase}
+                onChange={setPassphrase}
+                autoComplete="off"
+                disabled={lockedOut || busy}
+                onEnter={() => void submit()}
+              />
+            </>
+          )}
+          {error && <p className="error" role="alert">{error}</p>}
+          <Button
+            block
+            disabled={lockedOut}
+            busy={busy}
+            onClick={() => void submit()}
+          >
+            {busy ? 'Unlocking…' : 'Unlock'}
+          </Button>
+          <p className="muted">
+            Locks after {status.autoLockMinutes} min idle
+            {status.lockWhenPopupCloses
+              ? ' · closing the popup resets that countdown'
+              : ''}
+            .
+          </p>
+        </div>
       </div>
     </div>
   );

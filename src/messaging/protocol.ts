@@ -3,7 +3,7 @@ import { ELECTRUM_TRUST_LEVELS } from '../domain/electrumTrust';
 import { assertNewPassword } from '../domain/passwordPolicy';
 
 /** Messaging protocol version. Bump when request/response shapes change. */
-export const PROTOCOL_VERSION = 15 as const;
+export const PROTOCOL_VERSION = 16 as const;
 
 /**
  * Create / Import password — hard gate only (trimmed length).
@@ -137,6 +137,11 @@ export const WalletStatusSchema = z.object({
    * unknown version. hasVault is also true; create/import are blocked.
    */
   vaultCorrupt: z.boolean().optional(),
+  /**
+   * False after `create` until backup + quiz (`confirmSeedBackup`).
+   * Import and pre-v7 vaults are true. UI must not enter Ready while false.
+   */
+  seedBackupConfirmed: z.boolean(),
   /** Host-free short phrase / stable code message for UI. */
   error: z.string().optional(),
 });
@@ -281,6 +286,13 @@ export const WalletRequestSchema = z.discriminatedUnion('type', [
     password: z.string().min(1),
     kind: SecretKindSchema,
   }).strict(),
+  /**
+   * Re-fetch the create-flow mnemonic while backup is still outstanding.
+   * SW returns it only when unlocked, unconfirmed, and kind is mnemonic.
+   */
+  BaseRequest.extend({ type: z.literal('pendingBackupMnemonic') }).strict(),
+  /** Mark seed backup + quiz complete. Required before Ready / send. */
+  BaseRequest.extend({ type: z.literal('confirmSeedBackup') }).strict(),
   BaseRequest.extend({
     type: z.literal('estimateSend'),
     to: z.string().optional(),
@@ -319,7 +331,10 @@ export const WalletResponseSchema = z.discriminatedUnion('ok', [
   z.object({
     ok: z.literal(true),
     status: WalletStatusSchema,
-    /** One-shot mnemonic returned only from `create` — UI must not persist it. */
+    /**
+     * One-shot mnemonic from `create` or `pendingBackupMnemonic`.
+     * UI must not persist it (React state only).
+     */
     mnemonic: z.string().optional(),
     /** One-shot probe result from `testElectrum`. */
     probe: ElectrumProbeSchema.optional(),

@@ -9,6 +9,7 @@ import {
   shouldNotifyPopupHidden,
   type PopupHidePolicy,
 } from './popupHideSession';
+import { isSeedBackupPending } from './lib/seedBackup';
 import {
   clearPopupResume,
   isResumableStage,
@@ -98,16 +99,42 @@ export default function App() {
     }
   }, []);
 
+  const enterBackupFlow = useCallback(
+    async (next: WalletStatus) => {
+      rememberStatus(next);
+      void clearPopupResume();
+      const peek = await walletRpc({ type: 'pendingBackupMnemonic' });
+      if (!peek.ok || !peek.mnemonic) {
+        setErrorMessage(
+          !peek.ok
+            ? peek.error
+            : 'Could not load the recovery phrase. Start over or try again.'
+        );
+        setStage('error');
+        return;
+      }
+      setPendingMnemonic(peek.mnemonic);
+      setPendingCreateAddress(peek.status.address ?? next.address);
+      setFlow({ kind: 'create' });
+      setStage('mnemonic-display');
+    },
+    [rememberStatus]
+  );
+
   const applyStatus = useCallback(
     (next: WalletStatus, nextStage?: WalletStage) => {
       rememberStatus(next);
+      if (isSeedBackupPending(next) && !next.locked) {
+        void enterBackupFlow(next);
+        return;
+      }
       if (nextStage) {
         setStage(nextStage);
         return;
       }
       setStage(stageFromStatus(next));
     },
-    [rememberStatus]
+    [rememberStatus, enterBackupFlow]
   );
 
   const clearPending = useCallback(() => {
@@ -139,6 +166,14 @@ export default function App() {
         return;
       }
       rememberStatus(res.status);
+      if (isSeedBackupPending(res.status)) {
+        if (res.status.locked) {
+          setStage('ready');
+          return;
+        }
+        await enterBackupFlow(res.status);
+        return;
+      }
       if (!res.status.locked && res.status.hasVault) {
         const resume = await readPopupResume();
         if (cancelled) return;
@@ -159,10 +194,16 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [rememberStatus]);
+  }, [rememberStatus, enterBackupFlow]);
 
   useEffect(() => {
-    if (!status || status.locked || !isResumableStage(stage)) {
+    if (!status || status.locked || isSeedBackupPending(status)) {
+      if (status && isSeedBackupPending(status)) {
+        void clearPopupResume();
+      }
+      return;
+    }
+    if (!isResumableStage(stage)) {
       return;
     }
     void writePopupResume(stage);
@@ -187,6 +228,7 @@ export default function App() {
     !!status &&
     !status.locked &&
     status.hasVault &&
+    status.seedBackupConfirmed &&
     !status.vaultCorrupt &&
     status.serverStatus !== 'unconfigured' &&
     status.electrumTrust !== 'degraded' &&
@@ -415,6 +457,10 @@ export default function App() {
       if (res.status) rememberStatus(res.status);
       throw err;
     }
+    if (isSeedBackupPending(res.status) && !res.status.locked) {
+      await enterBackupFlow(res.status);
+      return;
+    }
     applyStatus(res.status, 'ready');
   };
 
@@ -486,12 +532,19 @@ export default function App() {
           onInternalBack={(handler) => {
             mnemonicDisplayBackRef.current = handler;
           }}
-          onConfirm={() => {
+          onConfirm={async () => {
+            const res = await walletRpc({ type: 'confirmSeedBackup' });
+            if (!res.ok) throw new Error(res.error);
             setPendingMnemonic(null);
             setPendingCreateAddress(undefined);
             setFlow({ kind: 'none' });
-            setStage('ready');
-            void refreshStatus();
+            applyStatus(res.status, 'ready');
+          }}
+          onStartOver={async () => {
+            const res = await walletRpc({ type: 'destroySession' });
+            if (!res.ok) throw new Error(res.error);
+            clearPending();
+            applyStatus(res.status, 'idle');
           }}
         />
       )}
@@ -525,14 +578,18 @@ export default function App() {
         <PasswordLockView status={status} onUnlock={onUnlock} />
       )}
 
-      {stage === 'ready' && status && !status.vaultCorrupt && !status.locked && (
-        <ReadyView
-          status={status}
-          onStatus={(next) => applyStatus(next, 'ready')}
-          onReceive={() => setStage('receive')}
-          onSend={() => setStage('send')}
-        />
-      )}
+      {stage === 'ready' &&
+        status &&
+        !status.vaultCorrupt &&
+        !status.locked &&
+        status.seedBackupConfirmed && (
+          <ReadyView
+            status={status}
+            onStatus={(next) => applyStatus(next, 'ready')}
+            onReceive={() => setStage('receive')}
+            onSend={() => setStage('send')}
+          />
+        )}
 
       {stage === 'receive' && status && <ReceiveView status={status} />}
 

@@ -76,9 +76,9 @@ Until that follow-up lands, README / checklists must not claim a blanket “0 vu
 
 | Surface | Current | Notes |
 |---------|---------|--------|
-| Messaging protocol | **15** | `PROTOCOL_VERSION` — bump when request/response shapes change |
+| Messaging protocol | **16** | `PROTOCOL_VERSION` — bump when request/response shapes change |
 | Vault ciphertext | **1** / **2** / **3** | See [Vault format](#vault-format) |
-| Wallet settings | **6** | `SETTINGS_VERSION` — auto-lock, lock-when-popup-closes, address book, daily spend limit, verify-with-second-server |
+| Wallet settings | **7** | `SETTINGS_VERSION` — auto-lock, lock-when-popup-closes, address book, daily spend limit, verify-with-second-server, seed-backup-confirmed |
 
 ## Vault format
 

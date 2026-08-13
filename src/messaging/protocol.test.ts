@@ -11,8 +11,8 @@ import {
 } from './protocol';
 
 describe('protocol v10', () => {
-  it('exports PROTOCOL_VERSION = 15', () => {
-    expect(PROTOCOL_VERSION).toBe(15);
+  it('exports PROTOCOL_VERSION = 16', () => {
+    expect(PROTOCOL_VERSION).toBe(16);
   });
 
   it('rejects protocol v5 envelopes', () => {
@@ -203,6 +203,28 @@ describe('protocol v10', () => {
     expect(estimate.success).toBe(true);
   });
 
+  it('accepts pendingBackupMnemonic and confirmSeedBackup', () => {
+    expect(
+      parseWalletRequest({
+        protocol: PROTOCOL_VERSION,
+        type: 'pendingBackupMnemonic',
+      }).success
+    ).toBe(true);
+    expect(
+      parseWalletRequest({
+        protocol: PROTOCOL_VERSION,
+        type: 'confirmSeedBackup',
+      }).success
+    ).toBe(true);
+    expect(
+      parseWalletRequest({
+        protocol: PROTOCOL_VERSION,
+        type: 'pendingBackupMnemonic',
+        extra: true,
+      }).success
+    ).toBe(false);
+  });
+
   it('accepts previewSend with optional feeRate', () => {
     const withFee = parseWalletRequest({
       protocol: PROTOCOL_VERSION,
@@ -272,6 +294,7 @@ describe('protocol v10', () => {
       termsAccepted: true,
       autoLockMinutes: 15,
       lockWhenPopupCloses: true,
+      seedBackupConfirmed: true,
       serverKind: 'builtin',
       serverStatus: 'idle',
       error: 'Connection failed',
@@ -298,6 +321,7 @@ describe('protocol v10', () => {
         termsAccepted: true,
         autoLockMinutes: 15,
         lockWhenPopupCloses: false,
+        seedBackupConfirmed: true,
         secretKind: 'mnemonic',
         utxoCount: 2,
         feeRates: { slow: 2, standard: 5, estimated: true },
@@ -350,6 +374,8 @@ describe('protocol v10', () => {
     expect(types).toContain('setDailySpendLimit');
     expect(types).toContain('setVerifyWithSecondServer');
     expect(types).toContain('revealSecret');
+    expect(types).toContain('pendingBackupMnemonic');
+    expect(types).toContain('confirmSeedBackup');
   });
 
   it('create/import require trimmed password length >= 12', () => {
@@ -444,6 +470,7 @@ describe('protocol v10', () => {
       termsAccepted: true,
       autoLockMinutes: 15,
       lockWhenPopupCloses: true,
+      seedBackupConfirmed: true,
       passphraseRequired: true,
     });
     expect(status.success).toBe(true);

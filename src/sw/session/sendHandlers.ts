@@ -26,6 +26,18 @@ import { armAutoLock, clearChainCache, sessionRam } from './state';
 import { buildStatus } from './status';
 import { verifyVaultPassword } from './vaultHandlers';
 
+const SEED_BACKUP_REQUIRED = 'Finish seed backup before sending.';
+
+async function rejectIfBackupPending(): Promise<WalletResponse | null> {
+  const settings = await readSettings();
+  if (settings.seedBackupConfirmed) return null;
+  return {
+    ok: false,
+    error: SEED_BACKUP_REQUIRED,
+    status: await buildStatus(settings),
+  };
+}
+
 export async function handlePreviewSend(
   to: string,
   amountSats: number,
@@ -35,6 +47,8 @@ export async function handlePreviewSend(
   if (!sessionRam.identity) {
     return { ok: false, error: new TxError('LOCKED').message };
   }
+  const backupBlock = await rejectIfBackupPending();
+  if (backupBlock) return backupBlock;
 
   const settings = await readSettings();
   const dailySpend = await readDailySpend();
@@ -112,6 +126,8 @@ export async function handleSend(
   if (!sessionRam.identity) {
     return { ok: false, error: new TxError('LOCKED').message };
   }
+  const backupBlock = await rejectIfBackupPending();
+  if (backupBlock) return backupBlock;
 
   // Password re-auth first — wrong password must not burn the confirmation token.
   const verified = await verifyVaultPassword(password);
@@ -237,6 +253,8 @@ export async function handleEstimateSend(
   if (!sessionRam.identity) {
     return { ok: false, error: new TxError('LOCKED').message };
   }
+  const backupBlock = await rejectIfBackupPending();
+  if (backupBlock) return backupBlock;
   if (sessionRam.cachedUtxos === undefined) {
     return {
       ok: false,

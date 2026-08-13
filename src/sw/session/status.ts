@@ -82,6 +82,7 @@ export async function buildStatus(
     dailySpendLimitSats: settings.dailySpendLimitSats,
     dailySpendUsedSats: usedSatsToday(dailySpend, now),
     verifyWithSecondServer: settings.verifyWithSecondServer,
+    seedBackupConfirmed: settings.seedBackupConfirmed,
     serverKind: serverKindForUrl(settings, sessionRam.lastServerUrl),
     serverStatus: sessionRam.lastServerStatus,
     watchActive: sessionRam.watchActive,

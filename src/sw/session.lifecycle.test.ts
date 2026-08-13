@@ -108,6 +108,7 @@ describe('session vault lifecycle (mocked storage)', () => {
     expect(res.status.locked).toBe(false);
     expect(res.status.address).toMatch(/^cy1/);
     expect(res.status.secretKind).toBe('mnemonic');
+    expect(res.status.seedBackupConfirmed).toBe(false);
     const address = res.status.address!;
     const mnemonic = res.mnemonic!;
 
@@ -391,6 +392,75 @@ describe('session vault lifecycle (mocked storage)', () => {
     wipeSpy.mockRestore();
   });
 
+  it('create requires seed backup confirm before send; remount can re-fetch mnemonic', async () => {
+    const { handleWalletRequest } = await import('./session');
+    await handleWalletRequest(req({ type: 'acceptTerms' }));
+
+    const created = await handleWalletRequest(
+      req({ type: 'create', password: 'correct horse battery' })
+    );
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+    expect(created.status.seedBackupConfirmed).toBe(false);
+    expect(created.status.locked).toBe(false);
+    const mnemonic = created.mnemonic!;
+
+    const status = await handleWalletRequest(req({ type: 'getStatus' }));
+    expect(status.ok).toBe(true);
+    if (!status.ok) return;
+    expect(status.status.hasVault).toBe(true);
+    expect(status.status.seedBackupConfirmed).toBe(false);
+    expect(status.status.locked).toBe(false);
+
+    const peek = await handleWalletRequest(req({ type: 'pendingBackupMnemonic' }));
+    expect(peek.ok).toBe(true);
+    if (!peek.ok) return;
+    expect(peek.mnemonic).toBe(mnemonic);
+    expect(JSON.stringify(memory)).not.toContain(mnemonic);
+
+    const blockedSend = await handleWalletRequest(
+      req({
+        type: 'estimateSend',
+        amountSats: 1000,
+        feeRate: 2,
+      })
+    );
+    expect(blockedSend.ok).toBe(false);
+    if (blockedSend.ok) return;
+    expect(blockedSend.error).toMatch(/seed backup/i);
+
+    const confirmed = await handleWalletRequest(req({ type: 'confirmSeedBackup' }));
+    expect(confirmed.ok).toBe(true);
+    if (!confirmed.ok) return;
+    expect(confirmed.status.seedBackupConfirmed).toBe(true);
+
+    const peekAfter = await handleWalletRequest(
+      req({ type: 'pendingBackupMnemonic' })
+    );
+    expect(peekAfter.ok).toBe(false);
+  }, 20_000);
+
+  it('import marks seed backup confirmed', async () => {
+    const { handleWalletRequest } = await import('./session');
+    await handleWalletRequest(req({ type: 'acceptTerms' }));
+    const mnemonic =
+      'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+
+    const res = await handleWalletRequest(
+      req({
+        type: 'import',
+        kind: 'mnemonic',
+        secret: mnemonic,
+        password: 'correct horse battery',
+      })
+    );
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.status.hasVault).toBe(true);
+    expect(res.status.seedBackupConfirmed).toBe(true);
+    expect(res.status.locked).toBe(false);
+  }, 20_000);
+
   it('new install defaults: autoLock 5 min and lockWhenPopupCloses on', async () => {
     const { handleWalletRequest } = await import('./session');
     const res = await handleWalletRequest(req({ type: 'getStatus' }));
@@ -398,6 +468,7 @@ describe('session vault lifecycle (mocked storage)', () => {
     if (!res.ok) return;
     expect(res.status.autoLockMinutes).toBe(5);
     expect(res.status.lockWhenPopupCloses).toBe(true);
+    expect(res.status.seedBackupConfirmed).toBe(true);
   });
 
   it('setLockWhenPopupCloses persists and appears on status', async () => {

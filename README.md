@@ -151,9 +151,9 @@ Bump when the corresponding shape or on-disk format changes (never silent vault 
 
 | Surface | Current | Source |
 |---------|---------|--------|
-| Messaging protocol | **15** | `PROTOCOL_VERSION` in `src/messaging/protocol.ts` |
+| Messaging protocol | **16** | `PROTOCOL_VERSION` in `src/messaging/protocol.ts` |
 | Vault ciphertext | **1** (legacy) / **2** (legacy passphrase) / **3** (new seals) | `src/domain/vault.ts` — v2/v3 may set `passphraseRequired`; v2 passphrase wallets migrate to v3 on unlock; no silent v1 rewrite |
-| Wallet settings | **6** | `SETTINGS_VERSION` in `src/domain/settings.ts` — includes `lockWhenPopupCloses`, address book, `dailySpendLimitSats`, `verifyWithSecondServer` |
+| Wallet settings | **7** | `SETTINGS_VERSION` in `src/domain/settings.ts` — includes `lockWhenPopupCloses`, address book, `dailySpendLimitSats`, `verifyWithSecondServer`, `seedBackupConfirmed` |
 
 ## Verification gate
 
@@ -196,7 +196,7 @@ Shared concepts (network params, BIP84 derivation, Electrum) live under `src/dom
 
 - This is a **hot wallet** (browser extension): browser/OS RNG and process memory are trusted; Electrum servers see addresses you query. Full policy: [SECURITY.md](SECURITY.md).
 - Password verification = successful vault decrypt (no separate password-hash oracle). Unlock failures (password or BIP39 passphrase) share one `Unlock failed` phrase.
-- Versions: messaging protocol **15**; vault ciphertext **v1** (legacy) / **v2** (legacy passphrase) / **v3** (new seals; optional BIP39 `passphraseRequired` + 32-hex encrypted `seedFingerprint`); settings **v6**. New wallets default to **24-word** mnemonics. Unsupported vault versions fail closed; existing v1 wallets are never silently rewritten. v2 passphrase wallets re-seal as v3 on successful unlock. See [Versions](#versions).
+- Versions: messaging protocol **16**; vault ciphertext **v1** (legacy) / **v2** (legacy passphrase) / **v3** (new seals; optional BIP39 `passphraseRequired` + 32-hex encrypted `seedFingerprint`); settings **v7**. New wallets default to **24-word** mnemonics. Unsupported vault versions fail closed; existing v1 wallets are never silently rewritten. v2 passphrase wallets re-seal as v3 on successful unlock. See [Versions](#versions).
 - Electrum: with ≥2 configured endpoints, dual-server verify is required (`electrumTrust`); degraded / verify-off blocks Refresh and Send.
 - Key wipe on lock is best-effort: mutable key buffers are zeroed; JS strings rely on GC + SW restart.
 - Host permissions for build-time Electrum defaults (when injected) are install-time; custom `wss://` requires an explicit runtime grant.

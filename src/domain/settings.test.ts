@@ -35,6 +35,7 @@ import {
   resolveElectrumServers,
   setActiveUrl,
   setDailySpendLimit,
+  setSeedBackupConfirmed,
   setVerifyWithSecondServer,
 } from './settings';
 
@@ -44,7 +45,7 @@ const FIXTURE_MNEMONIC =
 describe('normalizeSettings', () => {
   it('returns build-time defaults for empty input', () => {
     const s = normalizeSettings(null);
-    expect(s.version).toBe(6);
+    expect(s.version).toBe(7);
     expect(s.network).toBe('mainnet');
     expect(s.autoLockMinutes).toBe(5);
     expect(s.lockWhenPopupCloses).toBe(true);
@@ -52,6 +53,7 @@ describe('normalizeSettings', () => {
     expect(s.verifyWithSecondServer).toBe(true);
     expect(s.addressBook).toEqual([]);
     expect(s.dailySpendLimitSats).toBeNull();
+    expect(s.seedBackupConfirmed).toBe(true);
     expect(resolveElectrumServers(s, 'mainnet')).toEqual([...BUILTINS]);
     expect(resolveElectrumServers(s, 'testnet')).toEqual([]);
   });
@@ -67,7 +69,7 @@ describe('normalizeSettings', () => {
       autoLockMinutes: 10,
       termsAccepted: true,
     });
-    expect(s.version).toBe(6);
+    expect(s.version).toBe(7);
     expect(s.termsAccepted).toBe(true);
     expect(s.lockWhenPopupCloses).toBe(false);
     expect(s.explorerTxTemplate).toBeNull();
@@ -100,7 +102,7 @@ describe('normalizeSettings', () => {
       autoLockMinutes: 10,
       termsAccepted: false,
     });
-    expect(v2.version).toBe(6);
+    expect(v2.version).toBe(7);
     expect(v2.explorerTxTemplate).toBeNull();
     expect(v2.lockWhenPopupCloses).toBe(false);
   });
@@ -112,7 +114,7 @@ describe('normalizeSettings', () => {
       autoLockMinutes: 10,
       termsAccepted: true,
     });
-    expect(s.version).toBe(6);
+    expect(s.version).toBe(7);
     expect(s.autoLockMinutes).toBe(10);
     expect(s.lockWhenPopupCloses).toBe(false);
   });
@@ -140,7 +142,7 @@ describe('normalizeSettings', () => {
       lockWhenPopupCloses: true,
       termsAccepted: true,
     });
-    expect(s.version).toBe(6);
+    expect(s.version).toBe(7);
     expect(s.addressBook).toEqual([]);
     expect(s.dailySpendLimitSats).toBeNull();
     expect(s.verifyWithSecondServer).toBe(true);
@@ -156,7 +158,7 @@ describe('normalizeSettings', () => {
       addressBook: [],
       dailySpendLimitSats: null,
     });
-    expect(s.version).toBe(6);
+    expect(s.version).toBe(7);
     expect(s.verifyWithSecondServer).toBe(true);
   });
 
@@ -172,6 +174,34 @@ describe('normalizeSettings', () => {
         version: 6,
         verifyWithSecondServer: true,
       }).verifyWithSecondServer
+    ).toBe(true);
+  });
+
+  it('v6 settings without seedBackupConfirmed migrate to true', () => {
+    const s = normalizeSettings({
+      version: 6,
+      network: 'mainnet',
+      autoLockMinutes: 5,
+      lockWhenPopupCloses: true,
+      termsAccepted: true,
+      verifyWithSecondServer: true,
+    });
+    expect(s.version).toBe(7);
+    expect(s.seedBackupConfirmed).toBe(true);
+  });
+
+  it('preserves explicit seedBackupConfirmed false', () => {
+    expect(
+      normalizeSettings({
+        version: 7,
+        seedBackupConfirmed: false,
+      }).seedBackupConfirmed
+    ).toBe(false);
+    expect(
+      normalizeSettings({
+        version: 7,
+        seedBackupConfirmed: true,
+      }).seedBackupConfirmed
     ).toBe(true);
   });
 
@@ -192,6 +222,7 @@ describe('normalizeSettings', () => {
       'explorerTxTemplate',
       'lockWhenPopupCloses',
       'network',
+      'seedBackupConfirmed',
       'termsAccepted',
       'verifyWithSecondServer',
       'version',
@@ -340,6 +371,13 @@ describe('address book + spend helpers', () => {
     expect(s.verifyWithSecondServer).toBe(false);
     s = setVerifyWithSecondServer(s, true);
     expect(s.verifyWithSecondServer).toBe(true);
+  });
+
+  it('setSeedBackupConfirmed toggles', () => {
+    let s = setSeedBackupConfirmed(defaultSettings(), false);
+    expect(s.seedBackupConfirmed).toBe(false);
+    s = setSeedBackupConfirmed(s, true);
+    expect(s.seedBackupConfirmed).toBe(true);
   });
 
   it('isLargeSend uses half of confirmed balance', () => {

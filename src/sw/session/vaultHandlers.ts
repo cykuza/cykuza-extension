@@ -24,6 +24,7 @@ import {
 import {
   setAddressBook,
   setDailySpendLimit,
+  setSeedBackupConfirmed,
   setVerifyWithSecondServer,
   type WalletSettings,
 } from '../../domain/settings';
@@ -55,6 +56,18 @@ async function requireNoVault(): Promise<void> {
   if (result.state !== 'absent') {
     throw new Error('Vault already exists. End session first.');
   }
+}
+
+async function persistSeedBackupConfirmed(
+  confirmed: boolean
+): Promise<WalletSettings> {
+  const settings = await readSettings();
+  const next = setSeedBackupConfirmed(settings, confirmed);
+  if (next.seedBackupConfirmed === settings.seedBackupConfirmed) {
+    return settings;
+  }
+  await writeSettings(next);
+  return next;
 }
 
 function normalizeOptionalPassphrase(
@@ -137,6 +150,8 @@ export async function handleCreate(
     payload = { ...payload, seedFingerprint };
   }
 
+  // Flag first so a sealed vault can never look like a finished setup.
+  await persistSeedBackupConfirmed(false);
   await persistAndUnlock(payload, opts.password, {
     passphraseRequired,
     passphrase,
@@ -216,6 +231,7 @@ export async function handleImport(
       passphraseRequired,
       passphrase,
     });
+    await persistSeedBackupConfirmed(true);
     return { ok: true, status: await buildStatus() };
   } catch (err) {
     wipeIdentity(probe);
@@ -559,6 +575,41 @@ export async function handleSetVerifyWithSecondServer(
   const settings = await readSettings();
   const next = setVerifyWithSecondServer(settings, enabled);
   await writeSettings(next);
+  return { ok: true, status: await buildStatus(next) };
+}
+
+export async function handlePendingBackupMnemonic(): Promise<WalletResponse> {
+  if (!sessionRam.identity) {
+    return { ok: false, error: 'Wallet is locked' };
+  }
+  const settings = await readSettings();
+  if (settings.seedBackupConfirmed) {
+    return {
+      ok: false,
+      error: 'Seed backup already confirmed',
+      status: await buildStatus(settings),
+    };
+  }
+  if (sessionRam.identity.kind !== 'mnemonic') {
+    return {
+      ok: false,
+      error: 'This wallet has no recovery phrase to confirm.',
+      status: await buildStatus(settings),
+    };
+  }
+  await armAutoLock(settings);
+  return {
+    ok: true,
+    status: await buildStatus(settings),
+    mnemonic: sessionRam.identity.secret,
+  };
+}
+
+export async function handleConfirmSeedBackup(): Promise<WalletResponse> {
+  if (!sessionRam.identity) {
+    return { ok: false, error: 'Wallet is locked' };
+  }
+  const next = await persistSeedBackupConfirmed(true);
   return { ok: true, status: await buildStatus(next) };
 }
 

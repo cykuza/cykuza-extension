@@ -21,7 +21,7 @@ export {
   matchesAddressConfirmSuffix,
 } from './limits';
 
-export const SETTINGS_VERSION = 6 as const;
+export const SETTINGS_VERSION = 7 as const;
 export const DEFAULT_AUTO_LOCK_MINUTES = 5;
 
 /** Built-in mainnet endpoint reference (URL must be in build-time DEFAULT_ELECTRUM_MAINNET). */
@@ -88,6 +88,12 @@ export interface WalletSettings {
    * Default on; no-op when fewer than two permitted URLs.
    */
   verifyWithSecondServer: boolean;
+  /**
+   * True after create-flow seed backup + quiz (or import).
+   * Missing field migrates to true so existing vaults are not trapped.
+   * `create` writes false before sealing so popup remount cannot skip backup.
+   */
+  seedBackupConfirmed: boolean;
 }
 
 /** Explicit reason when no Electrum endpoints are available for a network. */
@@ -140,6 +146,7 @@ export function defaultSettings(): WalletSettings {
     addressBook: [],
     dailySpendLimitSats: null,
     verifyWithSecondServer: true,
+    seedBackupConfirmed: true,
   };
 }
 
@@ -379,6 +386,9 @@ export function normalizeSettings(raw: unknown): WalletSettings {
       ? obj.verifyWithSecondServer
       : true;
 
+  // Missing field → true (grandfather existing vaults). Explicit false stays false.
+  const seedBackupConfirmed = obj.seedBackupConfirmed !== false;
+
   return {
     version: SETTINGS_VERSION,
     network,
@@ -390,6 +400,7 @@ export function normalizeSettings(raw: unknown): WalletSettings {
     addressBook: normalizeAddressBook(obj.addressBook),
     dailySpendLimitSats: normalizeDailySpendLimit(obj.dailySpendLimitSats),
     verifyWithSecondServer,
+    seedBackupConfirmed,
   };
 }
 
@@ -628,6 +639,16 @@ export function setVerifyWithSecondServer(
   return {
     ...settings,
     verifyWithSecondServer: enabled === true,
+  };
+}
+
+export function setSeedBackupConfirmed(
+  settings: WalletSettings,
+  confirmed: boolean
+): WalletSettings {
+  return {
+    ...settings,
+    seedBackupConfirmed: confirmed === true,
   };
 }
 

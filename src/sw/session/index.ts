@@ -16,10 +16,12 @@ import { enqueue } from './state';
 import { buildStatus } from './status';
 import {
   handleAcceptTerms,
+  handleConfirmSeedBackup,
   handleCreate,
   handleDestroy,
   handleImport,
   handleLock,
+  handlePendingBackupMnemonic,
   handlePopupHidden,
   handleRevealSecret,
   handleSetAddressBook,
@@ -89,6 +91,10 @@ export async function handleWalletRequest(
           return handleSetVerifyWithSecondServer(request.enabled);
         case 'revealSecret':
           return handleRevealSecret(request.password, request.kind);
+        case 'pendingBackupMnemonic':
+          return handlePendingBackupMnemonic();
+        case 'confirmSeedBackup':
+          return handleConfirmSeedBackup();
         case 'estimateSend':
           return handleEstimateSend(
             request.amountSats,
