@@ -15,17 +15,7 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      # Dual audit: shipped/runtime deps must be clean; full tree allows only the
-      # documented image-size DoS residual in web-ext/addons-linter (see SECURITY.md).
-      - run: npm run audit:prod
-      - run: npm run audit:toolchain
-      - run: npm run lint
-      - run: npm run check:leaks
-      - run: npm test
-      - run: npm run compile
-      # Source / contributor build — no CYKUZA_ELECTRUM_MAINNET_URLS secret.
-      # Release injects hosts into the bundle by design; this job gates git source
-      # and secret-free .output artifacts (chrome + firefox MV3).
-      - run: npm run build
-      - run: npm run build:firefox
-      - run: npm run check:no-secrets
+      # Identical to local `npm run gate` / git pre-push (see scripts/ci-gate.mjs).
+      - run: npm run gate
+        env:
+          CYKUZA_GATE: '1'

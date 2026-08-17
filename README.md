@@ -112,7 +112,7 @@ npm test
 npm run compile
 ```
 
-CI (`.github/workflows/ci.yml`) runs `audit:prod` → `audit:toolchain` → `lint` → `check:leaks` → `test` → `compile` → `build` → `build:firefox` → `check:no-secrets` **without** Electrum secrets. That gates tracked sources, shipped-dep advisories, allowlisted toolchain residuals only, and secret-free build artifacts. Release builds may inject `CYKUZA_ELECTRUM_MAINNET_URLS` into the store zip; do not run `check:no-secrets` on those secret-injected bundles.
+CI (`.github/workflows/ci.yml`) and the local git **pre-push** hook run `npm run gate` (see `scripts/ci-gate.mjs`) **without** Electrum secrets: `audit:prod` → `audit:toolchain` → `lint` → `check:leaks` → `test` → `compile` → `build` → `build:firefox` → `check:no-secrets`. That gates tracked sources, shipped-dep advisories, allowlisted toolchain residuals only, and secret-free build artifacts. Release builds may inject `CYKUZA_ELECTRUM_MAINNET_URLS` into the store zip; do not run `check:no-secrets` on those secret-injected bundles.
 
 `postinstall` runs `wxt prepare` only (local type stubs — no network telemetry).
 
@@ -157,12 +157,10 @@ Bump when the corresponding shape or on-disk format changes (never silent vault 
 
 ## Verification gate
 
-Contributor / CI suite without `CYKUZA_ELECTRUM_MAINNET_URLS`:
+Contributor / CI suite without `CYKUZA_ELECTRUM_MAINNET_URLS` (same command as git pre-push):
 
 ```bash
-npm test && npm run compile && npm run lint && npm run check:leaks \
-  && npm run build && npm run build:firefox && npm run check:no-secrets \
-  && npm run audit:prod && npm run audit:toolchain
+npm run gate
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for PR rules.

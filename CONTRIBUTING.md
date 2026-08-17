@@ -29,18 +29,10 @@ npm run dev
 
 ## Pull request rules
 
-Before opening a PR, the local gate must stay green:
+Before opening a PR, `npm run gate` must stay green (same steps as GitHub Actions). `npm install` installs a **pre-push** hook that runs this gate automatically:
 
 ```bash
-npm run lint
-npm run check:leaks
-npm test
-npm run compile
-npm run build
-npm run build:firefox
-npm run check:no-secrets
-npm run audit:prod
-npm run audit:toolchain
+npm run gate
 ```
 
 Also:

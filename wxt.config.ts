@@ -12,10 +12,15 @@ import { defineConfig } from 'wxt';
  * evaluated; top-level reads always see an empty string and produce builds
  * with no built-in hosts (see WXT env docs: use function form for manifest).
  */
+function electrumMainnetEnvRaw(): string {
+  // Git pre-push / GitHub CI (`npm run gate`) must emit secret-free artifacts.
+  // Maintainer `.env` is ignored for that path; `npm run zip` still injects.
+  if (process.env.CYKUZA_GATE === '1') return '';
+  return process.env.CYKUZA_ELECTRUM_MAINNET_URLS ?? '';
+}
+
 function electrumMainnetUrlsFromEnv(): string[] {
-  return parseElectrumMainnetUrls(
-    process.env.CYKUZA_ELECTRUM_MAINNET_URLS ?? ''
-  );
+  return parseElectrumMainnetUrls(electrumMainnetEnvRaw());
 }
 
 // web-ext/chrome-launcher only auto-discovers Google Chrome. Resolve any
@@ -83,7 +88,7 @@ export default defineConfig({
     };
   },
   vite: (env) => {
-    const electrumMainnetEnv = process.env.CYKUZA_ELECTRUM_MAINNET_URLS ?? '';
+    const electrumMainnetEnv = electrumMainnetEnvRaw();
     return {
       define: {
         // Same string used for host_permissions — keep manifest + runtime aligned.

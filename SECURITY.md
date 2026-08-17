@@ -72,6 +72,14 @@ Full detail: [README → Threat assumptions](README.md#threat-assumptions).
 
 Until that follow-up lands, README / checklists must not claim a blanket “0 vulnerabilities” for the full install tree — only that **prod audit is clean** and toolchain residuals are explicitly allowlisted.
 
+### Patched toolchain pins (`package.json` `overrides`)
+
+| Package | Pin | Why |
+|---------|-----|-----|
+| `nanoid` | **3.3.18** | [GHSA-2v37-7h3g-55p8](https://github.com/advisories/GHSA-2v37-7h3g-55p8) — infinite loop if `customAlphabet` / `customRandom` is called with size `0`. Path is `vite` → `postcss` (**dev/build only**, not in the MV3 wallet bundle). |
+
+Do not add new GHSA ids to `audit-toolchain.mjs` when a patched release exists — pin via `overrides` as above.
+
 ## Versions
 
 | Surface | Current | Notes |

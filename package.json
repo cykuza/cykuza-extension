@@ -21,8 +21,9 @@
     "check:no-secrets": "node scripts/check-no-secrets.mjs",
     "audit:prod": "npm audit --omit=dev --audit-level=high",
     "audit:toolchain": "node scripts/audit-toolchain.mjs",
+    "gate": "node scripts/ci-gate.mjs",
     "hash:artifacts": "node scripts/hash-artifacts.mjs",
-    "postinstall": "wxt prepare",
+    "postinstall": "wxt prepare && node scripts/install-git-hooks.mjs",
     "test": "vitest run"
   },
   "dependencies": {
@@ -54,6 +55,7 @@
   },
   "overrides": {
     "adm-zip": "0.6.0",
+    "nanoid": "3.3.18",
     "shell-quote": "^1.10.0",
     "tmp": "^0.2.7"
   }

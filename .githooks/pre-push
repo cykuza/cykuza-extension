@@ -1,0 +1,6 @@
+#!/bin/sh
+# Same verification as GitHub Actions (`npm run gate`). Refuse the push if it
+# would fail CI. Installed by `npm install` via scripts/install-git-hooks.mjs.
+set -e
+cd "$(git rev-parse --show-toplevel)"
+exec npm run gate
