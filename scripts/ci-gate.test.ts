@@ -30,6 +30,14 @@ describe('CI gate', () => {
     }
   });
 
+  it('GitHub workflow uses Node 24 action runtimes (not deprecated Node 20 @v4)', () => {
+    const yml = readFileSync(join(ROOT, '.github/workflows/ci.yml'), 'utf8');
+    expect(yml).not.toMatch(/actions\/checkout@v4\b/);
+    expect(yml).not.toMatch(/actions\/setup-node@v4\b/);
+    expect(yml).toMatch(/actions\/checkout@v[6-9]\b/);
+    expect(yml).toMatch(/actions\/setup-node@v[6-9]\b/);
+  });
+
   it('pre-push hook runs npm run gate', () => {
     const hook = readFileSync(join(ROOT, '.githooks/pre-push'), 'utf8');
     expect(hook).toMatch(/npm run gate/);
