@@ -652,6 +652,13 @@ export function setSeedBackupConfirmed(
   };
 }
 
+/** Idle auto-lock is only for a finished vault (create must keep RAM for backup). */
+export function idleAutoLockApplies(
+  settings: Pick<WalletSettings, 'seedBackupConfirmed'>
+): boolean {
+  return settings.seedBackupConfirmed === true;
+}
+
 /** Fraction of confirmed balance that triggers a large-send warning. */
 export const LARGE_SEND_BALANCE_FRACTION = 0.5;
 

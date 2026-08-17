@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   canResumePopup,
   isSeedBackupPending,
+  shouldHoldSession,
   stageFromStatus,
 } from './seedBackup';
 
@@ -103,6 +104,39 @@ describe('canResumePopup', () => {
         locked: false,
         seedBackupConfirmed: true,
         vaultCorrupt: true,
+      })
+    ).toBe(false);
+  });
+});
+
+describe('shouldHoldSession', () => {
+  it('holds SW for unlocked backup and unlocked ready, not lock or idle', () => {
+    expect(
+      shouldHoldSession({
+        hasVault: true,
+        locked: false,
+        seedBackupConfirmed: false,
+      })
+    ).toBe(true);
+    expect(
+      shouldHoldSession({
+        hasVault: true,
+        locked: false,
+        seedBackupConfirmed: true,
+      })
+    ).toBe(true);
+    expect(
+      shouldHoldSession({
+        hasVault: true,
+        locked: true,
+        seedBackupConfirmed: false,
+      })
+    ).toBe(false);
+    expect(
+      shouldHoldSession({
+        hasVault: false,
+        locked: true,
+        seedBackupConfirmed: true,
       })
     ).toBe(false);
   });

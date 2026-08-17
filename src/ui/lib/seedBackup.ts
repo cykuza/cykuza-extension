@@ -35,3 +35,12 @@ export function canResumePopup(status: BackupStatus): boolean {
     stageFromStatus(status) === 'ready'
   );
 }
+
+/**
+ * Unlocked popup session (backup or ready). Independent of Electrum watch.
+ */
+export function shouldHoldSession(status: BackupStatus): boolean {
+  return (
+    stageFromStatus(status) === 'mnemonic-display' || canResumePopup(status)
+  );
+}

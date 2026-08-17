@@ -11,9 +11,9 @@ import {
   wipeIdentity,
   type UnlockedIdentity,
 } from '../../domain/keyring';
-import type { WalletSettings } from '../../domain/settings';
+import { idleAutoLockApplies, type WalletSettings } from '../../domain/settings';
 import type { FeeRates, Utxo } from '../../domain/transaction';
-import { scheduleAutoLockAlarm } from '../../platform/alarms';
+import { clearAutoLockAlarm, scheduleAutoLockAlarm } from '../../platform/alarms';
 import { readSettings } from '../../platform/storage';
 import type { ElectrumConnectionStatus } from '../electrumRuntime';
 import { clearConfirmations } from '../transactions';
@@ -84,5 +84,9 @@ export function wipeSessionRam(): void {
 
 export async function armAutoLock(settings?: WalletSettings): Promise<void> {
   const s = settings ?? (await readSettings());
+  if (!idleAutoLockApplies(s)) {
+    clearAutoLockAlarm();
+    return;
+  }
   scheduleAutoLockAlarm(s.autoLockMinutes);
 }

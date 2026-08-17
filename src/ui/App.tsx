@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { connectChainWatch } from '../messaging/chainWatchClient';
 import { walletRpc } from '../messaging/client';
+import { connectSessionHold } from '../messaging/sessionHold';
 import type { WalletStatus } from '../messaging/protocol';
 import Button from './components/Button';
 import {
@@ -12,6 +13,7 @@ import {
 import {
   canResumePopup,
   isSeedBackupPending,
+  shouldHoldSession,
   stageFromStatus,
 } from './lib/seedBackup';
 import {
@@ -99,6 +101,25 @@ export default function App() {
   }, []);
 
   const pendingMnemonicRef = useRef<string | null>(null);
+  const enterBackupFlowRef = useRef<(next: WalletStatus) => Promise<void>>(
+    async () => {}
+  );
+
+  const applyStatus = useCallback(
+    (next: WalletStatus, nextStage?: WalletStage) => {
+      rememberStatus(next);
+      if (stageFromStatus(next) === 'mnemonic-display') {
+        void enterBackupFlowRef.current(next);
+        return;
+      }
+      if (nextStage) {
+        setStage(nextStage);
+        return;
+      }
+      setStage(stageFromStatus(next));
+    },
+    [rememberStatus]
+  );
 
   const enterBackupFlow = useCallback(
     async (next: WalletStatus) => {
@@ -110,6 +131,13 @@ export default function App() {
       }
       const peek = await walletRpc({ type: 'pendingBackupMnemonic' });
       if (!peek.ok || !peek.mnemonic) {
+        if (
+          peek.status &&
+          stageFromStatus(peek.status) !== 'mnemonic-display'
+        ) {
+          applyStatus(peek.status);
+          return;
+        }
         setErrorMessage(
           !peek.ok
             ? peek.error
@@ -123,24 +151,9 @@ export default function App() {
       setPendingCreateAddress(peek.status.address ?? next.address);
       setStage('mnemonic-display');
     },
-    [rememberStatus]
+    [rememberStatus, applyStatus]
   );
-
-  const applyStatus = useCallback(
-    (next: WalletStatus, nextStage?: WalletStage) => {
-      rememberStatus(next);
-      if (stageFromStatus(next) === 'mnemonic-display') {
-        void enterBackupFlow(next);
-        return;
-      }
-      if (nextStage) {
-        setStage(nextStage);
-        return;
-      }
-      setStage(stageFromStatus(next));
-    },
-    [rememberStatus, enterBackupFlow]
-  );
+  enterBackupFlowRef.current = enterBackupFlow;
 
   const clearPending = useCallback(() => {
     setPendingPassword(null);
@@ -220,18 +233,19 @@ export default function App() {
   }, [popupHidePolicy]);
 
   /**
-   * UI-scoped Electrum watch Port for the unlocked popup session.
-   * SW owns socket restart on network/endpoint change; keep Port stable here.
+   * Electrum watch: chain subscribe while Ready can talk to a trusted server.
+   * Session hold: MV3 RAM identity for any unlocked popup (backup or Ready).
    */
-  const shouldWatch =
+  const watchElectrum =
     !!status &&
     canResumePopup(status) &&
     status.serverStatus !== 'unconfigured' &&
     status.electrumTrust !== 'degraded' &&
     status.electrumTrust !== 'verify_off';
+  const holdSession = !!status && shouldHoldSession(status);
 
   useEffect(() => {
-    if (!shouldWatch) return;
+    if (!watchElectrum) return;
     const handle = connectChainWatch({
       onStatus: (next) => {
         rememberStatus(next);
@@ -244,7 +258,15 @@ export default function App() {
     return () => {
       handle.stop();
     };
-  }, [shouldWatch, rememberStatus]);
+  }, [watchElectrum, rememberStatus]);
+
+  useEffect(() => {
+    if (!holdSession) return;
+    const handle = connectSessionHold();
+    return () => {
+      handle.stop();
+    };
+  }, [holdSession]);
 
   const goBack = useCallback(() => {
     setErrorMessage(null);
@@ -526,7 +548,16 @@ export default function App() {
           }}
           onConfirm={async () => {
             const res = await walletRpc({ type: 'confirmSeedBackup' });
-            if (!res.ok) throw new Error(res.error);
+            if (!res.ok) {
+              if (res.status) applyStatus(res.status);
+              if (
+                !res.status ||
+                stageFromStatus(res.status) === 'mnemonic-display'
+              ) {
+                throw new Error(res.error);
+              }
+              return;
+            }
             pendingMnemonicRef.current = null;
             setPendingMnemonic(null);
             setPendingCreateAddress(undefined);

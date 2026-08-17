@@ -580,7 +580,11 @@ export async function handleSetVerifyWithSecondServer(
 
 export async function handlePendingBackupMnemonic(): Promise<WalletResponse> {
   if (!sessionRam.identity) {
-    return { ok: false, error: 'Wallet is locked' };
+    return {
+      ok: false,
+      error: 'Wallet is locked',
+      status: await buildStatus(),
+    };
   }
   const settings = await readSettings();
   if (settings.seedBackupConfirmed) {
@@ -607,9 +611,14 @@ export async function handlePendingBackupMnemonic(): Promise<WalletResponse> {
 
 export async function handleConfirmSeedBackup(): Promise<WalletResponse> {
   if (!sessionRam.identity) {
-    return { ok: false, error: 'Wallet is locked' };
+    return {
+      ok: false,
+      error: 'Wallet is locked',
+      status: await buildStatus(),
+    };
   }
   const next = await persistSeedBackupConfirmed(true);
+  await armAutoLock(next);
   return { ok: true, status: await buildStatus(next) };
 }
 

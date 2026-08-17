@@ -429,10 +429,14 @@ describe('session vault lifecycle (mocked storage)', () => {
     if (blockedSend.ok) return;
     expect(blockedSend.error).toMatch(/seed backup/i);
 
+    const alarms = await import('../platform/alarms');
+    vi.mocked(alarms.scheduleAutoLockAlarm).mockClear();
+
     const confirmed = await handleWalletRequest(req({ type: 'confirmSeedBackup' }));
     expect(confirmed.ok).toBe(true);
     if (!confirmed.ok) return;
     expect(confirmed.status.seedBackupConfirmed).toBe(true);
+    expect(vi.mocked(alarms.scheduleAutoLockAlarm)).toHaveBeenCalled();
 
     const peekAfter = await handleWalletRequest(
       req({ type: 'pendingBackupMnemonic' })
@@ -493,7 +497,7 @@ describe('session vault lifecycle (mocked storage)', () => {
     expect(res.status.lockWhenPopupCloses).toBe(true);
   });
 
-  it('popupHidden re-arms auto-lock without tearing down the session', async () => {
+  it('popupHidden after create does not arm auto-lock until backup is confirmed', async () => {
     const alarms = await import('../platform/alarms');
     const { handleWalletRequest } = await import('./session');
     const { sessionRam } = await import('./session/state');
@@ -512,13 +516,60 @@ describe('session vault lifecycle (mocked storage)', () => {
     expect(res.ok).toBe(true);
     if (!res.ok) return;
     expect(res.status.locked).toBe(false);
+    expect(res.status.seedBackupConfirmed).toBe(false);
+    expect(sessionRam.identity).not.toBeNull();
+    expect(vi.mocked(alarms.scheduleAutoLockAlarm)).not.toHaveBeenCalled();
+  }, 20_000);
+
+  it('popupHidden re-arms auto-lock after seed backup is confirmed', async () => {
+    const alarms = await import('../platform/alarms');
+    const { handleWalletRequest } = await import('./session');
+    const { sessionRam } = await import('./session/state');
+
+    await handleWalletRequest(req({ type: 'acceptTerms' }));
+    const created = await handleWalletRequest(
+      req({ type: 'create', password: 'correct horse battery' })
+    );
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+
+    const confirmed = await handleWalletRequest(
+      req({ type: 'confirmSeedBackup' })
+    );
+    expect(confirmed.ok).toBe(true);
+    if (!confirmed.ok) return;
+    expect(sessionRam.identity).not.toBeNull();
+
+    vi.mocked(alarms.scheduleAutoLockAlarm).mockClear();
+
+    const res = await handleWalletRequest(req({ type: 'popupHidden' }));
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.status.locked).toBe(false);
     expect(sessionRam.identity).not.toBeNull();
     expect(vi.mocked(alarms.scheduleAutoLockAlarm)).toHaveBeenCalled();
   }, 20_000);
 
-  it('auto-lock alarm tears down the unlocked session', async () => {
+  it('auto-lock alarm does not tear down during pending seed backup', async () => {
+    const { handleWalletRequest, applyAutoLockAlarm } = await import('./session');
+    const { sessionRam } = await import('./session/state');
+
+    await handleWalletRequest(req({ type: 'acceptTerms' }));
+    const created = await handleWalletRequest(
+      req({ type: 'create', password: 'correct horse battery' })
+    );
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+    expect(sessionRam.identity).not.toBeNull();
+
+    await applyAutoLockAlarm();
+
+    expect(sessionRam.identity).not.toBeNull();
+  }, 20_000);
+
+  it('auto-lock alarm tears down the unlocked session after backup confirm', async () => {
     const alarms = await import('../platform/alarms');
-    const { handleWalletRequest } = await import('./session');
+    const { handleWalletRequest, applyAutoLockAlarm } = await import('./session');
     const { registerAlarmHandlers } = await import('./router');
     const { sessionRam } = await import('./session/state');
 
@@ -531,22 +582,42 @@ describe('session vault lifecycle (mocked storage)', () => {
     expect(listeners.length).toBeGreaterThan(0);
 
     await handleWalletRequest(req({ type: 'acceptTerms' }));
+    await handleWalletRequest(
+      req({ type: 'create', password: 'correct horse battery' })
+    );
+    const confirmed = await handleWalletRequest(
+      req({ type: 'confirmSeedBackup' })
+    );
+    expect(confirmed.ok).toBe(true);
+    if (!confirmed.ok) return;
+    expect(sessionRam.identity).not.toBeNull();
+
+    await applyAutoLockAlarm();
+
+    expect(sessionRam.identity).toBeNull();
+    expect(vi.mocked(alarms.clearAutoLockAlarm)).toHaveBeenCalled();
+  }, 20_000);
+
+  it('confirmSeedBackup while locked returns status for unlock routing', async () => {
+    const { handleWalletRequest, teardownSession } = await import('./session');
+
+    await handleWalletRequest(req({ type: 'acceptTerms' }));
     const created = await handleWalletRequest(
       req({ type: 'create', password: 'correct horse battery' })
     );
     expect(created.ok).toBe(true);
     if (!created.ok) return;
-    expect(sessionRam.identity).not.toBeNull();
+    expect(created.status.seedBackupConfirmed).toBe(false);
 
-    for (const listener of listeners) {
-      listener({ name: alarms.AUTO_LOCK_ALARM });
-    }
+    await teardownSession();
 
-    // teardownSession is async void from the alarm handler — flush microtasks.
-    await Promise.resolve();
-    await Promise.resolve();
-
-    expect(sessionRam.identity).toBeNull();
-    expect(vi.mocked(alarms.clearAutoLockAlarm)).toHaveBeenCalled();
-  });
+    const res = await handleWalletRequest(req({ type: 'confirmSeedBackup' }));
+    expect(res.ok).toBe(false);
+    if (res.ok) return;
+    expect(res.error).toBe('Wallet is locked');
+    expect(res.status).toBeDefined();
+    expect(res.status?.locked).toBe(true);
+    expect(res.status?.hasVault).toBe(true);
+    expect(res.status?.seedBackupConfirmed).toBe(false);
+  }, 20_000);
 });

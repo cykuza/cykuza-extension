@@ -6,7 +6,6 @@ import {
   handleSetNetwork,
   handleTestElectrum,
 } from './electrumHandlers';
-import { teardownSession } from './lifecycle';
 import {
   handleEstimateSend,
   handlePreviewSend,
@@ -33,7 +32,7 @@ import {
   handleUnlock,
 } from './vaultHandlers';
 
-export { teardownSession };
+export { applyAutoLockAlarm, teardownSession } from './lifecycle';
 
 export async function handleWalletRequest(
   request: WalletRequest

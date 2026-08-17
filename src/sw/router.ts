@@ -1,7 +1,9 @@
 import { parseWalletRequest, WalletResponseSchema } from '../messaging/protocol';
+import { SESSION_HOLD_PORT } from '../messaging/sessionHold';
 import { CHAIN_WATCH_PORT } from '../messaging/watchProtocol';
 import { bindWatchPort } from './electrumWatch';
-import { handleWalletRequest, teardownSession } from './session';
+import { applyAutoLockAlarm, handleWalletRequest } from './session';
+import { bindSessionHoldPort } from './sessionHold';
 import { AUTO_LOCK_ALARM, onAlarm } from '../platform/alarms';
 
 function isTrustedSender(sender: chrome.runtime.MessageSender): boolean {
@@ -45,12 +47,10 @@ export function registerMessageRouter(): void {
 }
 
 /**
- * UI-scoped Electrum watch: popup connects a named Port; SW holds
- * scripthash.subscribe until the Port disconnects or the vault locks.
+ * Popup Ports: session hold (unlocked RAM) and Electrum watch (chain).
  */
-export function registerWatchPort(): void {
+export function registerPortHandlers(): void {
   chrome.runtime.onConnect.addListener((port) => {
-    if (port.name !== CHAIN_WATCH_PORT) return;
     if (port.sender?.id !== chrome.runtime.id) {
       try {
         port.disconnect();
@@ -59,17 +59,24 @@ export function registerWatchPort(): void {
       }
       return;
     }
-    bindWatchPort(port);
+    if (port.name === CHAIN_WATCH_PORT) {
+      bindWatchPort(port);
+      return;
+    }
+    if (port.name === SESSION_HOLD_PORT) {
+      bindSessionHoldPort(port);
+    }
   });
 }
 
 /**
  * Auto-lock: wipe in-memory identity when the alarm fires.
+ * `applyAutoLockAlarm` enforces idle-lock policy.
  */
 export function registerAlarmHandlers(): void {
   onAlarm((alarm) => {
     if (alarm.name === AUTO_LOCK_ALARM) {
-      void teardownSession();
+      void applyAutoLockAlarm();
     }
   });
 }

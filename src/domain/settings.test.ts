@@ -24,6 +24,7 @@ import {
   defaultSettings,
   ElectrumUnconfiguredError,
   getConnectCandidates,
+  idleAutoLockApplies,
   isLargeSend,
   matchesAddressConfirmSuffix,
   normalizeSettings,
@@ -203,6 +204,11 @@ describe('normalizeSettings', () => {
         seedBackupConfirmed: true,
       }).seedBackupConfirmed
     ).toBe(true);
+  });
+
+  it('idle auto-lock applies only after seed backup is confirmed', () => {
+    expect(idleAutoLockApplies({ seedBackupConfirmed: false })).toBe(false);
+    expect(idleAutoLockApplies({ seedBackupConfirmed: true })).toBe(true);
   });
 
   it('strips unknown keys from settings blobs', () => {

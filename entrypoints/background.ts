@@ -2,11 +2,11 @@ import '../src/platform/bufferPolyfill';
 import {
   registerAlarmHandlers,
   registerMessageRouter,
-  registerWatchPort,
+  registerPortHandlers,
 } from '../src/sw/router';
 
 export default defineBackground(() => {
   registerMessageRouter();
-  registerWatchPort();
+  registerPortHandlers();
   registerAlarmHandlers();
 });

@@ -7,7 +7,7 @@ minified/bundled JavaScript (and local Argon2 Wasm via `hash-wasm`). That is
 Admin reviewers only: attach this repository (or the WXT `*-sources.zip`) on the
 version page and follow the steps below so the rebuild matches the submitted XPI.
 
-## Environment used for the submitted 0.1.1 XPI
+## Environment used for the submitted 0.1.2 XPI
 
 | Item | Value |
 |------|--------|
@@ -40,9 +40,9 @@ npm run zip:firefox
 
 Artifacts:
 
-- XPI-equivalent zip: `.output/cykuza-extension-0.1.1-firefox.zip`
+- XPI-equivalent zip: `.output/cykuza-extension-0.1.2-firefox.zip`
 - Unpacked: `.output/firefox-mv3/` (load via `about:debugging` if needed)
-- Sources zip (this tree, no `.env`): `.output/cykuza-extension-0.1.1-sources.zip`
+- Sources zip (this tree, no `.env`): `.output/cykuza-extension-0.1.2-sources.zip`
 
 Do **not** run `npm run check:no-secrets` on a secret-injected release build
 (official hosts are expected in that artifact).
