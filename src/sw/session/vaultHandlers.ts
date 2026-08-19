@@ -610,10 +610,15 @@ export async function handlePendingBackupMnemonic(): Promise<WalletResponse> {
 }
 
 export async function handleConfirmSeedBackup(): Promise<WalletResponse> {
-  if (!sessionRam.identity) {
+  const vaultState = await readVaultState();
+  if (vaultState.state === 'absent') {
+    return { ok: false, error: 'No vault found', status: await buildStatus() };
+  }
+  if (vaultState.state === 'corrupt') {
     return {
       ok: false,
-      error: 'Wallet is locked',
+      error:
+        'Vault data is corrupt. End session in Settings to start over.',
       status: await buildStatus(),
     };
   }

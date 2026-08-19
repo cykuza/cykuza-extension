@@ -2,7 +2,7 @@
   "name": "cykuza-extension",
   "description": "Non-custodial Cyberyen wallet browser extension — local ciphertext vault, no telemetry",
   "private": true,
-  "version": "0.1.2",
+  "version": "0.1.3",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -19,6 +19,7 @@
     "lint": "eslint .",
     "check:leaks": "node scripts/leak-scan.mjs",
     "check:no-secrets": "node scripts/check-no-secrets.mjs",
+    "check:amo": "node scripts/check-amo.mjs",
     "audit:prod": "npm audit --omit=dev --audit-level=high",
     "audit:toolchain": "node scripts/audit-toolchain.mjs",
     "gate": "node scripts/ci-gate.mjs",

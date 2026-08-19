@@ -5,7 +5,7 @@
     "jsx": "react-jsx",
     "types": ["chrome", "vite/client"]
   },
-  "include": ["**/*.ts", "**/*.tsx", ".wxt/**/*.ts"],
+  "include": ["**/*.ts", "**/*.tsx", "**/*.d.ts", "**/*.d.mts", ".wxt/**/*.ts"],
   "exclude": ["node_modules", ".output", "**/*.test.ts"]
 }
 

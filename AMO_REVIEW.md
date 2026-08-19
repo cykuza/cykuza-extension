@@ -7,7 +7,7 @@ minified/bundled JavaScript (and local Argon2 Wasm via `hash-wasm`). That is
 Admin reviewers only: attach this repository (or the WXT `*-sources.zip`) on the
 version page and follow the steps below so the rebuild matches the submitted XPI.
 
-## Environment used for the submitted 0.1.2 XPI
+## Environment used for the submitted 0.1.3 XPI
 
 | Item | Value |
 |------|--------|
@@ -40,9 +40,9 @@ npm run zip:firefox
 
 Artifacts:
 
-- XPI-equivalent zip: `.output/cykuza-extension-0.1.2-firefox.zip`
+- XPI-equivalent zip: `.output/cykuza-extension-0.1.3-firefox.zip`
 - Unpacked: `.output/firefox-mv3/` (load via `about:debugging` if needed)
-- Sources zip (this tree, no `.env`): `.output/cykuza-extension-0.1.2-sources.zip`
+- Sources zip (this tree, no `.env`): `.output/cykuza-extension-0.1.3-sources.zip`
 
 Do **not** run `npm run check:no-secrets` on a secret-injected release build
 (official hosts are expected in that artifact).
@@ -56,6 +56,9 @@ and will **not** match the store XPI.
 - Permissions: `storage`, `alarms`; optional hosts `https://*/*` (exact custom Electrum grants)
 - No content scripts; no remote script URLs
 - CSP `wasm-unsafe-eval` is only for local Argon2 Wasm
+- Zod is configured `jitless` (no `Function` JIT). A Vite plugin in
+  `scripts/amo-safe-vendors.mjs` removes React DOM `innerHTML` assignment and
+  Zod’s `Function` probe from production chunks; `npm run check:amo` must pass.
 
 ## Privacy / support
 

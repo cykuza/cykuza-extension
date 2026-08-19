@@ -12,6 +12,7 @@ import {
 } from './popupHideSession';
 import {
   canResumePopup,
+  isReadyOverlayStage,
   isSeedBackupPending,
   shouldHoldSession,
   stageFromStatus,
@@ -106,17 +107,18 @@ export default function App() {
   );
 
   const applyStatus = useCallback(
-    (next: WalletStatus, nextStage?: WalletStage) => {
+    (next: WalletStatus, overlay?: WalletStage) => {
       rememberStatus(next);
-      if (stageFromStatus(next) === 'mnemonic-display') {
+      const base = stageFromStatus(next);
+      if (base === 'mnemonic-display') {
         void enterBackupFlowRef.current(next);
         return;
       }
-      if (nextStage) {
-        setStage(nextStage);
+      if (overlay && base === 'ready' && isReadyOverlayStage(overlay)) {
+        setStage(overlay);
         return;
       }
-      setStage(stageFromStatus(next));
+      setStage(base);
     },
     [rememberStatus]
   );
@@ -351,15 +353,15 @@ export default function App() {
     if (stage === 'private-key-import') {
       return { title: 'Import private key', showBack: true, onBack: goBack };
     }
+    if (stage === 'unlock') {
+      return { title: 'Unlock' };
+    }
     if (stage === 'ready' && unlockedReady) {
       return {
         address: status.address ?? null,
         showSettings: true,
         onSettings: () => setStage('settings'),
       };
-    }
-    if (stage === 'ready') {
-      return { title: 'Unlock' };
     }
     if (stage === 'receive') {
       return { title: 'Receive', showBack: true, onBack: goBack };
@@ -444,7 +446,7 @@ export default function App() {
     setPendingPassphrase(undefined);
     if (!res.ok) throw new Error(res.error);
     clearPending();
-    applyStatus(res.status, 'ready');
+    applyStatus(res.status);
   };
 
   const onImportPrivateKey = async (privateKey: string, password: string) => {
@@ -456,7 +458,7 @@ export default function App() {
     });
     if (!res.ok) throw new Error(res.error);
     clearPending();
-    applyStatus(res.status, 'ready');
+    applyStatus(res.status);
   };
 
   const onUnlock = async (password: string, passphrase?: string) => {
@@ -548,27 +550,18 @@ export default function App() {
           }}
           onConfirm={async () => {
             const res = await walletRpc({ type: 'confirmSeedBackup' });
-            if (!res.ok) {
-              if (res.status) applyStatus(res.status);
-              if (
-                !res.status ||
-                stageFromStatus(res.status) === 'mnemonic-display'
-              ) {
-                throw new Error(res.error);
-              }
-              return;
-            }
+            if (!res.ok) throw new Error(res.error);
             pendingMnemonicRef.current = null;
             setPendingMnemonic(null);
             setPendingCreateAddress(undefined);
             setFlow({ kind: 'none' });
-            applyStatus(res.status, 'ready');
+            applyStatus(res.status);
           }}
           onStartOver={async () => {
             const res = await walletRpc({ type: 'destroySession' });
             if (!res.ok) throw new Error(res.error);
             clearPending();
-            applyStatus(res.status, 'idle');
+            applyStatus(res.status);
           }}
         />
       )}
@@ -593,19 +586,19 @@ export default function App() {
         <CorruptVaultView
           onDestroyed={(next) => {
             clearPending();
-            applyStatus(next, 'idle');
+            applyStatus(next);
           }}
         />
       )}
 
-      {stage === 'ready' && status && !status.vaultCorrupt && status.locked && (
+      {stage === 'unlock' && status && (
         <PasswordLockView status={status} onUnlock={onUnlock} />
       )}
 
       {stage === 'ready' && status && canResumePopup(status) && (
         <ReadyView
           status={status}
-          onStatus={(next) => applyStatus(next, 'ready')}
+          onStatus={(next) => applyStatus(next)}
           onReceive={() => setStage('receive')}
           onSend={() => setStage('send')}
         />
@@ -619,7 +612,7 @@ export default function App() {
           onStatus={(next) => {
             rememberStatus(next);
           }}
-          onSent={(next) => applyStatus(next, 'ready')}
+          onSent={(next) => applyStatus(next)}
           onInternalBack={(handler) => {
             sendBackRef.current = handler;
           }}
@@ -630,7 +623,7 @@ export default function App() {
         <SettingsHubView
           status={status}
           onOpen={(section) => setStage(section)}
-          onLocked={(next) => applyStatus(next, 'ready')}
+          onLocked={(next) => applyStatus(next)}
         />
       )}
 
@@ -675,7 +668,7 @@ export default function App() {
         <DestroyView
           onChanged={(next) => {
             clearPending();
-            applyStatus(next, 'idle');
+            applyStatus(next);
           }}
         />
       )}

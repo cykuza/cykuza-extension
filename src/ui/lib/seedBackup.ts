@@ -17,14 +17,36 @@ export function isSeedBackupPending(
   );
 }
 
+const READY_OVERLAY_STAGES = new Set<WalletStage>([
+  'receive',
+  'send',
+  'settings',
+  'server-config',
+  'security',
+  'explorer',
+  'about',
+  'mnemonic-view',
+  'private-key-view',
+  'address-book',
+  'daily-spend',
+  'destroy',
+]);
+
 /**
  * Canonical popup stage implied by SW status.
- * Backup is a first-class destination — not a caller-side override of `ready`.
+ * Unlock and backup are first-class destinations — not caller-side overrides of `ready`.
  */
 export function stageFromStatus(status: BackupStatus): WalletStage {
   if (!status.hasVault) return 'idle';
-  if (isSeedBackupPending(status) && !status.locked) return 'mnemonic-display';
+  if (status.vaultCorrupt) return 'ready';
+  if (status.locked) return 'unlock';
+  if (isSeedBackupPending(status)) return 'mnemonic-display';
   return 'ready';
+}
+
+/** Post-ready screens (Receive, Settings, …). Ignored unless mapper says `ready`. */
+export function isReadyOverlayStage(stage: WalletStage): boolean {
+  return READY_OVERLAY_STAGES.has(stage);
 }
 
 /** Post-setup screens may restore only for an unlocked, finished, healthy vault. */

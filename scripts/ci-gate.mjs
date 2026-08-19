@@ -20,6 +20,7 @@ export const GATE_STEPS = [
   'compile',
   'build',
   'build:firefox',
+  'check:amo',
   'check:no-secrets',
 ];
 

@@ -598,7 +598,8 @@ describe('session vault lifecycle (mocked storage)', () => {
     expect(vi.mocked(alarms.clearAutoLockAlarm)).toHaveBeenCalled();
   }, 20_000);
 
-  it('confirmSeedBackup while locked returns status for unlock routing', async () => {
+  it('confirmSeedBackup while locked persists backup; unlock goes to ready not backup', async () => {
+    const alarms = await import('../platform/alarms');
     const { handleWalletRequest, teardownSession } = await import('./session');
 
     await handleWalletRequest(req({ type: 'acceptTerms' }));
@@ -608,16 +609,118 @@ describe('session vault lifecycle (mocked storage)', () => {
     expect(created.ok).toBe(true);
     if (!created.ok) return;
     expect(created.status.seedBackupConfirmed).toBe(false);
+    const mnemonic = created.mnemonic!;
+    expect(JSON.stringify(memory)).not.toContain(mnemonic);
 
     await teardownSession();
 
+    vi.mocked(alarms.scheduleAutoLockAlarm).mockClear();
+
     const res = await handleWalletRequest(req({ type: 'confirmSeedBackup' }));
-    expect(res.ok).toBe(false);
-    if (res.ok) return;
-    expect(res.error).toBe('Wallet is locked');
-    expect(res.status).toBeDefined();
-    expect(res.status?.locked).toBe(true);
-    expect(res.status?.hasVault).toBe(true);
-    expect(res.status?.seedBackupConfirmed).toBe(false);
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.status.locked).toBe(true);
+    expect(res.status.hasVault).toBe(true);
+    expect(res.status.seedBackupConfirmed).toBe(true);
+    expect(res.status.address).toBeUndefined();
+    expect(JSON.stringify(res)).not.toContain(mnemonic);
+    expect(vi.mocked(alarms.scheduleAutoLockAlarm)).not.toHaveBeenCalled();
+
+    const peekLocked = await handleWalletRequest(
+      req({ type: 'pendingBackupMnemonic' })
+    );
+    expect(peekLocked.ok).toBe(false);
+
+    const unlocked = await handleWalletRequest(
+      req({ type: 'unlock', password: 'correct horse battery' })
+    );
+    expect(unlocked.ok).toBe(true);
+    if (!unlocked.ok) return;
+    expect(unlocked.status.locked).toBe(false);
+    expect(unlocked.status.seedBackupConfirmed).toBe(true);
+    expect(unlocked.mnemonic).toBeUndefined();
+
+    const peekAfter = await handleWalletRequest(
+      req({ type: 'pendingBackupMnemonic' })
+    );
+    expect(peekAfter.ok).toBe(false);
+  }, 20_000);
+
+  it('lock before quiz: unlock re-fetches mnemonic; send stays blocked until confirm', async () => {
+    const { handleWalletRequest } = await import('./session');
+
+    await handleWalletRequest(req({ type: 'acceptTerms' }));
+    const created = await handleWalletRequest(
+      req({ type: 'create', password: 'correct horse battery' })
+    );
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+    const mnemonic = created.mnemonic!;
+
+    const locked = await handleWalletRequest(req({ type: 'lock' }));
+    expect(locked.ok).toBe(true);
+    if (!locked.ok) return;
+    expect(locked.status.locked).toBe(true);
+    expect(locked.status.seedBackupConfirmed).toBe(false);
+
+    const peekLocked = await handleWalletRequest(
+      req({ type: 'pendingBackupMnemonic' })
+    );
+    expect(peekLocked.ok).toBe(false);
+    if (peekLocked.ok) return;
+    expect(peekLocked.error).toBe('Wallet is locked');
+    expect(peekLocked.mnemonic).toBeUndefined();
+
+    const unlocked = await handleWalletRequest(
+      req({ type: 'unlock', password: 'correct horse battery' })
+    );
+    expect(unlocked.ok).toBe(true);
+    if (!unlocked.ok) return;
+    expect(unlocked.status.seedBackupConfirmed).toBe(false);
+    expect(unlocked.status.locked).toBe(false);
+
+    const peek = await handleWalletRequest(req({ type: 'pendingBackupMnemonic' }));
+    expect(peek.ok).toBe(true);
+    if (!peek.ok) return;
+    expect(peek.mnemonic).toBe(mnemonic);
+
+    const blockedSend = await handleWalletRequest(
+      req({
+        type: 'estimateSend',
+        amountSats: 1000,
+        feeRate: 2,
+      })
+    );
+    expect(blockedSend.ok).toBe(false);
+    if (blockedSend.ok) return;
+    expect(blockedSend.error).toMatch(/seed backup/i);
+
+    const confirmed = await handleWalletRequest(req({ type: 'confirmSeedBackup' }));
+    expect(confirmed.ok).toBe(true);
+    if (!confirmed.ok) return;
+    expect(confirmed.status.seedBackupConfirmed).toBe(true);
+  }, 20_000);
+
+  it('confirmSeedBackup without vault or on corrupt vault fails', async () => {
+    const { handleWalletRequest } = await import('./session');
+
+    const absent = await handleWalletRequest(req({ type: 'confirmSeedBackup' }));
+    expect(absent.ok).toBe(false);
+    if (absent.ok) return;
+    expect(absent.error).toBe('No vault found');
+    expect(absent.status?.hasVault).toBe(false);
+
+    memory.vault_ciphertext = {
+      version: 99,
+      salt: 'aa',
+      iv: 'bb',
+      ciphertext: 'cc',
+    };
+
+    const corrupt = await handleWalletRequest(req({ type: 'confirmSeedBackup' }));
+    expect(corrupt.ok).toBe(false);
+    if (corrupt.ok) return;
+    expect(corrupt.error).toMatch(/corrupt/i);
+    expect(corrupt.status?.vaultCorrupt).toBe(true);
   }, 20_000);
 });

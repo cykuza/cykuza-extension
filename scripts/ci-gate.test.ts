@@ -17,6 +17,7 @@ describe('CI gate', () => {
       'compile',
       'build',
       'build:firefox',
+      'check:amo',
       'check:no-secrets',
     ]);
   });

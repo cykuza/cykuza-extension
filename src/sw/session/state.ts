@@ -84,7 +84,7 @@ export function wipeSessionRam(): void {
 
 export async function armAutoLock(settings?: WalletSettings): Promise<void> {
   const s = settings ?? (await readSettings());
-  if (!idleAutoLockApplies(s)) {
+  if (!idleAutoLockApplies(s) || !sessionRam.identity) {
     clearAutoLockAlarm();
     return;
   }

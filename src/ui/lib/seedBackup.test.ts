@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   canResumePopup,
+  isReadyOverlayStage,
   isSeedBackupPending,
   shouldHoldSession,
   stageFromStatus,
 } from './seedBackup';
+import type { WalletStage } from '../stages';
 
 describe('isSeedBackupPending', () => {
   it('is true only for a healthy vault that has not finished backup', () => {
@@ -36,108 +38,138 @@ describe('isSeedBackupPending', () => {
   });
 });
 
-describe('stageFromStatus', () => {
-  it('routes unfinished create to mnemonic-display when unlocked', () => {
-    expect(
-      stageFromStatus({
-        hasVault: true,
-        locked: false,
-        seedBackupConfirmed: false,
-      })
-    ).toBe('mnemonic-display');
-  });
-
-  it('keeps unfinished create on unlock when locked', () => {
-    expect(
-      stageFromStatus({
-        hasVault: true,
-        locked: true,
-        seedBackupConfirmed: false,
-      })
-    ).toBe('ready');
-  });
-
-  it('maps confirmed vault to ready and absent vault to idle', () => {
-    expect(
-      stageFromStatus({
-        hasVault: true,
-        locked: false,
-        seedBackupConfirmed: true,
-      })
-    ).toBe('ready');
-    expect(
-      stageFromStatus({
+describe('stageFromStatus matrix', () => {
+  const cases: Array<{
+    name: string;
+    status: {
+      hasVault: boolean;
+      locked: boolean;
+      seedBackupConfirmed: boolean;
+      vaultCorrupt?: boolean;
+    };
+    stage: WalletStage;
+    resume: boolean;
+    hold: boolean;
+  }> = [
+    {
+      name: 'absent vault is idle',
+      status: {
         hasVault: false,
         locked: true,
         seedBackupConfirmed: true,
-      })
-    ).toBe('idle');
-  });
-});
-
-describe('canResumePopup', () => {
-  it('allows resume only for an unlocked finished wallet', () => {
-    expect(
-      canResumePopup({
-        hasVault: true,
-        locked: false,
-        seedBackupConfirmed: true,
-      })
-    ).toBe(true);
-    expect(
-      canResumePopup({
-        hasVault: true,
+      },
+      stage: 'idle',
+      resume: false,
+      hold: false,
+    },
+    {
+      name: 'absent vault unlocked is still idle',
+      status: {
+        hasVault: false,
         locked: false,
         seedBackupConfirmed: false,
-      })
-    ).toBe(false);
-    expect(
-      canResumePopup({
+      },
+      stage: 'idle',
+      resume: false,
+      hold: false,
+    },
+    {
+      name: 'locked unfinished create is unlock, not ready',
+      status: {
+        hasVault: true,
+        locked: true,
+        seedBackupConfirmed: false,
+      },
+      stage: 'unlock',
+      resume: false,
+      hold: false,
+    },
+    {
+      name: 'locked finished vault is unlock',
+      status: {
         hasVault: true,
         locked: true,
         seedBackupConfirmed: true,
-      })
-    ).toBe(false);
-    expect(
-      canResumePopup({
+      },
+      stage: 'unlock',
+      resume: false,
+      hold: false,
+    },
+    {
+      name: 'unlocked unfinished create is backup',
+      status: {
+        hasVault: true,
+        locked: false,
+        seedBackupConfirmed: false,
+      },
+      stage: 'mnemonic-display',
+      resume: false,
+      hold: true,
+    },
+    {
+      name: 'unlocked finished vault is ready',
+      status: {
+        hasVault: true,
+        locked: false,
+        seedBackupConfirmed: true,
+      },
+      stage: 'ready',
+      resume: true,
+      hold: true,
+    },
+    {
+      name: 'corrupt locked vault is ready, not unlock',
+      status: {
+        hasVault: true,
+        locked: true,
+        seedBackupConfirmed: false,
+        vaultCorrupt: true,
+      },
+      stage: 'ready',
+      resume: false,
+      hold: false,
+    },
+    {
+      name: 'corrupt unlocked vault is ready, not backup',
+      status: {
         hasVault: true,
         locked: false,
         seedBackupConfirmed: true,
         vaultCorrupt: true,
-      })
-    ).toBe(false);
+      },
+      stage: 'ready',
+      resume: false,
+      hold: false,
+    },
+    {
+      name: 'corrupt unfinished vault is ready, not backup',
+      status: {
+        hasVault: true,
+        locked: false,
+        seedBackupConfirmed: false,
+        vaultCorrupt: true,
+      },
+      stage: 'ready',
+      resume: false,
+      hold: false,
+    },
+  ];
+
+  it.each(cases)('$name', ({ status, stage, resume, hold }) => {
+    expect(stageFromStatus(status)).toBe(stage);
+    expect(canResumePopup(status)).toBe(resume);
+    expect(shouldHoldSession(status)).toBe(hold);
   });
 });
 
-describe('shouldHoldSession', () => {
-  it('holds SW for unlocked backup and unlocked ready, not lock or idle', () => {
-    expect(
-      shouldHoldSession({
-        hasVault: true,
-        locked: false,
-        seedBackupConfirmed: false,
-      })
-    ).toBe(true);
-    expect(
-      shouldHoldSession({
-        hasVault: true,
-        locked: false,
-        seedBackupConfirmed: true,
-      })
-    ).toBe(true);
-    expect(
-      shouldHoldSession({
-        hasVault: true,
-        locked: true,
-        seedBackupConfirmed: false,
-      })
-    ).toBe(false);
-    expect(
-      shouldHoldSession({
-        hasVault: false,
-        locked: true,
-        seedBackupConfirmed: true,
-      })
-    ).toBe(false);
+describe('isReadyOverlayStage', () => {
+  it('is true only for post-ready screens, not base mapper stages', () => {
+    expect(isReadyOverlayStage('receive')).toBe(true);
+    expect(isReadyOverlayStage('settings')).toBe(true);
+    expect(isReadyOverlayStage('destroy')).toBe(true);
+    expect(isReadyOverlayStage('ready')).toBe(false);
+    expect(isReadyOverlayStage('unlock')).toBe(false);
+    expect(isReadyOverlayStage('mnemonic-display')).toBe(false);
+    expect(isReadyOverlayStage('idle')).toBe(false);
   });
 });

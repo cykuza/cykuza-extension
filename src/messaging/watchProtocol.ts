@@ -3,7 +3,7 @@
  * Separate from walletRpc (PROTOCOL_VERSION) — Port messages only.
  */
 
-import { z } from 'zod';
+import { z } from './zod';
 import { WalletStatusSchema } from './protocol';
 
 export const CHAIN_WATCH_PORT = 'cykuza-chain-watch' as const;

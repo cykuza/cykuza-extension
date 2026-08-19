@@ -8,6 +8,7 @@ export type WalletStage =
   | 'mnemonic-display'
   | 'mnemonic-input'
   | 'private-key-import'
+  | 'unlock'
   | 'ready'
   | 'receive'
   | 'send'

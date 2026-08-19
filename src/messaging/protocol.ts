@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from './zod';
 import { ELECTRUM_TRUST_LEVELS } from '../domain/electrumTrust';
 import { assertNewPassword } from '../domain/passwordPolicy';
 
@@ -291,7 +291,10 @@ export const WalletRequestSchema = z.discriminatedUnion('type', [
    * SW returns it only when unlocked, unconfirmed, and kind is mnemonic.
    */
   BaseRequest.extend({ type: z.literal('pendingBackupMnemonic') }).strict(),
-  /** Mark seed backup + quiz complete. Required before Ready / send. */
+  /**
+   * Persist seed backup + quiz complete. Does not require RAM identity.
+   * Required before Ready / send. `pendingBackupMnemonic` still needs unlock.
+   */
   BaseRequest.extend({ type: z.literal('confirmSeedBackup') }).strict(),
   BaseRequest.extend({
     type: z.literal('estimateSend'),

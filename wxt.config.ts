@@ -3,6 +3,7 @@ import {
   parseElectrumMainnetUrls,
   toHostPermissionPatterns,
 } from './src/domain/electrum/defaults';
+import { amoSafeVendorsPlugin } from './scripts/amo-safe-vendors.mjs';
 import { resolveChromiumBinary } from './scripts/resolve-chromium-binary';
 import { defineConfig } from 'wxt';
 
@@ -107,6 +108,7 @@ export default defineConfig({
       optimizeDeps: {
         include: ['buffer'],
       },
+      plugins: [amoSafeVendorsPlugin()],
       build: {
         // Dev keeps inline maps; prod must not ship sourcemaps (env secrets).
         sourcemap: env.command === 'serve' ? 'inline' : false,
